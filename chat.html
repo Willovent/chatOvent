@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Chatovent</title>
+	<link rel="stylesheet" href="/style.css">
+	<link rel="stylesheet" href="/bootstrap.css">    
+	<link rel="stylesheet" href="/jquery.cssemoticons.css">    
+	<script type="text/javascript" src="/knockout-3.2.0.js"></script>
+	<link href='//fonts.googleapis.com/css?family=Roboto:400,300,700' rel='stylesheet' type='text/css'>
+	<script src="//code.jquery.com/jquery-2.1.3.min.js"></script>        
+	<link href='jquery.contextMenu.css' rel='stylesheet' type='text/css'>
+	<meta name="viewport" content="width=device-width,initial-scale=1, user-scalable=no" /> 
+</head>
+
+<body>
+	<div id='overlay' style="width: 100%; height: 100vh; top:0; border: none; left: 0;z-index: 2;background: #fff;"></div>
+	<div id='loader-overlay'>
+		<div class="windows8 center">
+			<div class="wBall" id="wBall_1">
+				<div class="wInnerBall">
+				</div>
+			</div>
+			<div class="wBall" id="wBall_2">
+				<div class="wInnerBall">
+				</div>
+			</div>
+			<div class="wBall" id="wBall_3">
+				<div class="wInnerBall">
+				</div>
+			</div>
+			<div class="wBall" id="wBall_4">
+				<div class="wInnerBall">
+				</div>
+			</div>
+			<div class="wBall" id="wBall_5">
+				<div class="wInnerBall">
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="avatar-overlay">
+		<div id="avatar-form">
+			<div id="avatar-show">
+				<div class="crop">
+					<img id="own-avatar" src="/default_avatar.png" class="img-avatar" width="80">
+				</div>
+			</div>
+			<div id="avatar-inputs">
+				<div class="form-group">
+					<label for="file-avatar">Depuis un fichier</label>
+					<span class="form-control btn-file">
+						Parcourir... <input id="file-avatar" type="file">
+					</span>
+				</div>
+				<div class="form-group">
+					<label for="url-avatar">Depuis une adresse</label>
+					<input id="url-avatar" class="form-control" type="text">
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<section id="main-wrapper">
+		<ul id="zone-chat" class="col-lg-6 col-md-8 col-sm-10 col-xs-12" data-bind='template: { foreach: messages,
+		beforeRemove: hideMessage,
+		afterAdd: showMessage }'>
+		<li data-bind="css: { you: isOwn,private : isPrivate }">
+			<strong data-bind="style: { background: 'url(' + avatar + ')' }, attr: {pseudo : pseudo,title : pseudo}">
+				<p data-bind='text : pseudo'></p>
+				<p class="time" data-bind='text : moment(time).fromNow() ,attr : {time : time}'></p>
+			</strong>
+			<p class="to" data-bind='text : to'></p>
+			<p class="bubble" data-bind='html : text'></p>
+		</li>
+	</ul>
+
+</section>
+<footer>
+	<form action="/" class="col-lg-6 col-md-8 col-sm-10 col-xs-12 form-inline" method="post" id="formulaire_chat" class="form-inline">
+		<div id="submit-contener">
+			<textarea  type="text" name="message" id="message" autocomplete="off" placeholder="Votre message..." rows="2" cols="50" autofocus class="form-control"></textarea >
+				<div id="left">
+					<input type="submit" id="envoi_message" value="Envoyer" />
+					<input type="button" id="change_avatar" value="Avatar" />
+				</div>
+			</div>
+		</form>
+	</footer>
+	<aside id="pseudo-contener">
+		<div id="pseudo">
+
+		</div>
+	</aside>
+
+
+
+	<script type="text/javascript" src="/jquery.cssemoticons.min.js"></script>
+	<script type="text/javascript" src="/jquery.contextMenu.js"></script>
+	<script type="text/javascript" src="/moment.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript" src="/chat.js"></script>
+</body>
+</html>
+
