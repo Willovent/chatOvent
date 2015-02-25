@@ -1,6 +1,8 @@
 var socket = io.connect("/");
 var window_focus = true;
 var isAdmin = false;
+var avatarHasBeenErase = true;
+var avatarTimeout;
 var wizzSound = new Audio("/nudge.mp3");
 moment.locale('fr');
 
@@ -32,10 +34,10 @@ $.contextMenu({
 			callback: function(key, options) {
 				switch(key){
 					case "ban":
-					socket.emit('message', '!ban('+$(this).find('p')[0].innerHTML+')');
+					socket.emit('message', '/ban('+$(this).find('p')[0].innerHTML+')');
 					break;
 					case"wisp":
-					$('#message').val('!w(' +$(this).find('p')[0].innerHTML + ') ').focus();
+					$('#message').val('/w(' +$(this).find('p')[0].innerHTML + ') ').focus();
 					break;
 				}
 			},
@@ -64,7 +66,6 @@ if (!pseudo) {
 	pseudo = prompt('Quel est votre pseudo ?') + "";
 	localStorage['pseudo'] = pseudo;
 }
-socket.emit('nouveau_client', {room: location.pathname.substr(1, location.pathname.length - 1),pseudo: pseudo,guid : localStorage['guid'] });
 
 document.title = pseudo + ' - Chatovent';
 var avatar = localStorage['avatar'];
@@ -75,10 +76,12 @@ socket.on('message', function(data) {
 	insereMessage(data.pseudo, data.message )
 });
 socket.on('own_message',function(data){
+	avatarHasBeenErase = true;
 	insereMessage(data.pseudo, data.message,false , true);
 })
 socket.on('isAdmin',function(){
 	isAdmin = true;
+	avatarHasBeenErase = true;
 	consoleMessage('Vous disposez maintenant des droits d\'administrateur');
 })
 
@@ -87,6 +90,7 @@ socket.on('lolFunc', function(url) {
 });
 
 socket.on('pseudo_inuse', function() {
+	avatarHasBeenErase = true;
 	var pseudo = prompt('Ce pseudo est déjà utilisé') + "";
 	localStorage['pseudo']= pseudo;
 	socket.emit('nouveau_client', {room: location.pathname.substr(1, location.pathname.length - 1),pseudo: pseudo});
@@ -94,6 +98,7 @@ socket.on('pseudo_inuse', function() {
 });
 
 socket.on('serveur_error', function(err) {
+	avatarHasBeenErase = true;
 	consoleMessage(err + '. Merci de communiquer cette erreur avec l\'administrateur');
 });
 
@@ -109,7 +114,7 @@ socket.on('nouveau_client', function(data) {
 	$('#pseudo').append(strong);	
 	strong.attr('pseudo',pseudo);
 	strong.find('p').attr('pseudo', pseudo).click(function() {
-		$('#message').val('!w(' + $(this).attr('pseudo') + ') ').focus();
+		$('#message').val('/w(' + $(this).attr('pseudo') + ') ').focus();
 	});	
 });
 
@@ -119,6 +124,7 @@ socket.on('nick_changed', function(data) {
 });
 
 socket.on('nick_changed_own', function(data) {
+	avatarHasBeenErase = true;
 	consoleMessage( data.old + ' est maintenant connu comme étant ' + data.new);
 	$('strong[pseudo="'+htmlToText(data.old)+'"]').attr('pseudo', htmlToText(data.new)).find("p").html( data.new).attr('pseudo', htmlToText(data.new));
 	localStorage['pseudo'] = data.new;
@@ -128,7 +134,8 @@ socket.on('change_avatar', function(data) {
 	avatarUpdate(data.pseudo,data.avatar,data.display);
 });
 
-socket.on('change_avatar_own', function(data) {
+socket.on('change_avatar_own', function(data) {	
+	clearTimeout(avatarTimeout);
 	avatarUpdate(data.pseudo,data.avatar,data.display);	
 	$('#loader-overlay').hide();
 });
@@ -139,6 +146,7 @@ socket.on('disconnected', function(data) {
 });
 
 socket.on('invalid_pseudo', function(pseudo) {
+	avatarHasBeenErase = true;
 	consoleMessage('Votre pseudo n\'a pas changé, il est certainement déjà utilisé ou invalide');
 	localStorage['pseudo']= pseudo;
 });
@@ -158,11 +166,15 @@ socket.on('private_msg', function(data) {
 	insereMessage(data.from, data.msg, true)
 });
 socket.on('own_private_msg',function(data){
+	avatarHasBeenErase = true;
 	insereMessage(data.from, data.msg, true,true,data.to)
 })
 socket.on('disconnect', function() {
+	avatarHasBeenErase = true;
 	consoleMessage('Vous avez été éjecté du serveur')
 });
+
+socket.emit('nouveau_client', {room: location.pathname.substr(1, location.pathname.length - 1),pseudo: pseudo,guid : localStorage['guid'] });
 
 var window_focus = true;
 $(window).focus(function() {
@@ -228,8 +240,15 @@ function changeAvatar(url, display) {
 		$('#own-avatar')[0].onload = load;
 	}
 	localStorage['avatar'] = url;
+	avatarHasBeenErase = false;
+
 	socket.emit('set_avatar', {url: url,display: display});
 	$('#loader-overlay').show();
+	avatarTimeout = setTimeout(function(){
+		if(avatarHasBeenErase){
+			changeAvatar(url, display);
+		}
+	},5000)
 }
 
 function insereMessage(pseudo, message, isPrivate, isOwn, to) {
@@ -279,7 +298,7 @@ function populateConnectedList(people) {
 		$('#pseudo').append(strong);	
 		strong.attr('pseudo',pseudo);
 		strong.find('p').attr('pseudo', pseudo).click(function() {
-			$('#message').val('!w(' + $(this).attr('pseudo') + ') ').focus();
+			$('#message').val('/w(' + $(this).attr('pseudo') + ') ').focus();
 		});	
 	}
 	
@@ -323,11 +342,39 @@ $(function(){
 			$(this).toggleClass('animate')
 	}
 	);
-	$('#overlay').fadeOut(500,function(){
+	$('#overlay').fadeOut(1000,function(){
 		$('footer,aside').css({zIndex : 1});
 	});
 	var img = $('#own-avatar')[0];
-
+	$('#avatar-overlay').on('drop',function(ev){
+		var e = ev.originalEvent;
+		$('.crop').css({border : "none"});
+		e.preventDefault();
+		var url = e.dataTransfer.getData('URL');
+		if(url && url != ''){
+			img.src=url;
+			return false;
+		}
+		var file = e.dataTransfer.files[0];
+  		if(file.size>500*1024){
+			alert('Veulliez selectioner une image d\'taille inférieur à 500ko.')
+			return;
+		}
+		getBase64(file,function(url){
+			img.src=url;
+		});
+		return false;
+	});
+	$('#avatar-overlay').on('dragover',function(e){
+		$('.crop').css({border : "3px dashed"});
+		e.preventDefault();
+	    return false;
+	});
+	$('#avatar-overlay').on('dragleave',function(e){
+		$('.crop').css({border : "none"});
+		e.preventDefault();
+	    return false;
+	});
 	img.onload = function() { 
 		var width = 80;
 		var height = 80;
